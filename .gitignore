@@ -1,0 +1,8 @@
+# images
+dist/assets/
+
+# ts dependendencies
+node_modules/
+
+# ts-dist
+ts-dist/

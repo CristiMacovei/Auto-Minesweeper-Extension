@@ -1,0 +1,28 @@
+{
+  "name": "codeforces-extension",
+  "private": true,
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "bundle:popup": "npx webpack-cli build -c ./webpack/popup.webpack.config.js",
+    "bundle:fg": "npx webpack-cli build -c ./webpack/content.webpack.config.js",
+    "bundle:bg": "npx webpack-cli build -c ./webpack/background.webpack.config.js",
+    "bundle:all": "npm run bundle:popup && npm run bundle:fg && npm run bundle:bg",
+    "tailwind:css": "postcss tailwind.global.css -o dist/css/tailwind.css",
+    "build": "npm run bundle:all && npm run tailwind:css"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/chrome": "^0.0.195",
+    "autoprefixer": "^10.4.8",
+    "postcss": "^8.4.16",
+    "postcss-cli": "^10.0.0",
+    "tailwindcss": "^3.1.8",
+    "ts-loader": "^9.3.1",
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0"
+  }
+}
