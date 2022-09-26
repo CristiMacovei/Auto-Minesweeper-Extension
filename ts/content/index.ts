@@ -231,6 +231,109 @@ function findNonFlaggedTiles(
   return moves;
 }
 
+/*
+1 half \
+        => 1
+1 half /
+
+x free 
+*/
+function useOneOutOfTwo(matrix: Tile[][], numRows: number, numCols: number) {
+  let moves: AutoMove[] = [];
+  for (let i = 1; i < numRows; ++i) {
+    for (let j = 1; j < numCols; ++j) {
+      const currentState = getTypeFromClass(matrix[i][j].tileDiv.className);
+
+      if (currentState !== null && currentState >= 0) {
+        const neighbors = findNeighbors(i, j, numRows, numCols).map((pos) => ({
+          pos,
+          tileDiv: matrix[pos.row][pos.col].tileDiv
+        }));
+
+        const flagNeighbors = neighbors.filter(
+          ({ tileDiv }) => getTypeFromClass(tileDiv.className) === TileType.FLAG
+        );
+
+        const emptyNeighbors = neighbors.filter(
+          ({ tileDiv }) =>
+            getTypeFromClass(tileDiv.className) === TileType.UNCOVERED
+        );
+
+        const numFlagsRequired = currentState - flagNeighbors.length;
+
+        if (emptyNeighbors.length === 2 && numFlagsRequired === 1) {
+          // empty neighbours are adjacent
+          const [empty1, empty2] = emptyNeighbors;
+
+          const deltaRow = empty1.pos.row - empty2.pos.row;
+          const deltaCol = empty1.pos.col - empty2.pos.col;
+
+          if (Math.abs(deltaRow) + Math.abs(deltaCol) !== 1) {
+            return;
+          }
+
+          const nextRow = empty1.pos.row + deltaRow;
+          const nextCol = empty1.pos.col + deltaCol;
+
+          if (
+            0 < nextRow &&
+            nextRow < numRows &&
+            0 < nextCol &&
+            nextCol < numCols &&
+            getTypeFromClass(matrix[nextRow][nextCol].tileDiv.className) ===
+              TileType.UNCOVERED
+          ) {
+            let nextTargetRow = nextRow;
+            let nextTargetCol = nextCol;
+
+            if (nextTargetRow - i === 2) {
+              --nextTargetRow;
+            } else if (nextTargetRow - i === -2) {
+              ++nextTargetRow;
+            } else if (nextTargetCol - j === 2) {
+              --nextTargetCol;
+            } else if (nextTargetCol - j === -2) {
+              ++nextTargetCol;
+            }
+
+            const nextTargetDiv = matrix[nextTargetRow][nextTargetCol].tileDiv;
+            const nextTargetState = getTypeFromClass(nextTargetDiv.className);
+
+            if (nextTargetState !== null && nextTargetState !== 0) {
+              const nextNeighbors = findNeighbors(
+                nextTargetRow,
+                nextTargetCol,
+                numRows,
+                numCols
+              ).map((pos) => ({
+                pos,
+                tileDiv: matrix[pos.row][pos.col].tileDiv
+              }));
+
+              const nextTargetFlagNeighbours = nextNeighbors.filter(
+                ({ tileDiv }) =>
+                  getTypeFromClass(tileDiv.className) === TileType.FLAG
+              );
+
+              const nextTargetEmptyNeighbours = nextNeighbors.filter(
+                ({ tileDiv }) =>
+                  getTypeFromClass(tileDiv.className) === TileType.UNCOVERED
+              );
+
+              const nextTargetNumFlagsRequired =
+                nextTargetState - flagNeighbors.length;
+
+              //todo fix it
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return moves;
+}
+
 window.addEventListener('load', async (evt) => {
   const tiles = loadTiles();
   console.log(`Loaded tiles: `, tiles);
