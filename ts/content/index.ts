@@ -48,6 +48,14 @@ function loadTiles() {
   };
 }
 
+function identityString(moveList: AutoMove[]): string {
+  return moveList
+    .map((move) => {
+      return `${move.type}@$({move.row},${move.col})`;
+    })
+    .join('+');
+}
+
 function getTypeFromClass(className: string): TileType {
   const stateName = className.split(' ')[1];
 
@@ -85,8 +93,10 @@ function getTypeFromClass(className: string): TileType {
     case 'open8':
       return TileType.REVEAL_8;
 
-    default:
+    default: {
+      console.log(`[Warn] Unknown state found: ${stateName}`);
       return null;
+    }
   }
 }
 
@@ -115,7 +125,7 @@ function findNeighbors(
       return { row: newRow, col: newCol };
     })
     .filter(
-      ({ row, col }) => 0 <= row && row < numRows && 0 <= col && col < numCols
+      ({ row, col }) => 0 < row && row < numRows && 0 < col && col < numCols
     );
 }
 
@@ -135,15 +145,11 @@ function findFullySurroundedOpenTiles(
   numCols: number
 ): AutoMove[] {
   let moves: AutoMove[] = [];
-  for (let i = 0; i < numRows; ++i) {
-    for (let j = 0; j < numCols; ++j) {
+  for (let i = 1; i < numRows; ++i) {
+    for (let j = 1; j < numCols; ++j) {
       const currentState = getTypeFromClass(matrix[i][j].tileDiv.className);
 
       if (currentState !== null && currentState >= 0) {
-        // console.log(
-        //   `Found non-empty cell (state ${currentState}) @ (${i}, ${j})`
-        // );
-
         const neighbors = findNeighbors(i, j, numRows, numCols).map((pos) => ({
           pos,
           tileDiv: matrix[pos.row][pos.col].tileDiv
@@ -158,14 +164,10 @@ function findFullySurroundedOpenTiles(
             getTypeFromClass(tileDiv.className) === TileType.UNCOVERED
         );
 
-        // console.log('Flags: ', flagNeighbors);
-        // console.log('Empties: ', emptyNeighbors);
-
         if (
           emptyNeighbors.length > 0 &&
           flagNeighbors.length === currentState
         ) {
-          console.log(i, j);
           moves = moves.concat(
             emptyNeighbors.map(({ pos, tileDiv }) => ({
               type: 'reveal',
@@ -188,8 +190,8 @@ function findNonFlaggedTiles(
   numCols: number
 ) {
   let moves: AutoMove[] = [];
-  for (let i = 0; i < numRows; ++i) {
-    for (let j = 0; j < numCols; ++j) {
+  for (let i = 1; i < numRows; ++i) {
+    for (let j = 1; j < numCols; ++j) {
       const currentState = getTypeFromClass(matrix[i][j].tileDiv.className);
 
       if (currentState !== null && currentState >= 0) {
@@ -213,7 +215,6 @@ function findNonFlaggedTiles(
           emptyNeighbors.length > 0 &&
           emptyNeighbors.length === numFlagsRequired
         ) {
-          console.log(i, j);
           moves = moves.concat(
             emptyNeighbors.map(({ pos, tileDiv }) => ({
               type: 'flag',
@@ -232,21 +233,42 @@ function findNonFlaggedTiles(
 
 window.addEventListener('load', async (evt) => {
   const tiles = loadTiles();
-  console.log(tiles);
+  console.log(`Loaded tiles: `, tiles);
+
+  const faceElement = document.getElementById('face');
+
+  let prevMoveListIdentityString = '';
 
   setInterval(() => {
-    const autoMoves = findMoves(tiles.matrix, tiles.numRows, tiles.numCols);
-    console.log(autoMoves);
+    if (
+      faceElement.className.includes('facedead') ||
+      faceElement.className.includes('faceooh')
+    ) {
+      return;
+    }
+
     tiles.matrix.forEach((row) =>
       row.forEach((tile) => {
         tile.tileDiv.classList.remove('red');
         tile.tileDiv.classList.remove('green');
       })
     );
+
+    const autoMoves = findMoves(tiles.matrix, tiles.numRows, tiles.numCols);
     autoMoves.forEach((autoMove) => {
       autoMove.tileDiv.classList.add(
         autoMove.type === 'flag' ? 'red' : 'green'
       );
     });
+
+    const autoMovesIdentityString = identityString(autoMoves);
+    if (
+      autoMoves.length > 0 &&
+      autoMovesIdentityString !== prevMoveListIdentityString
+    ) {
+      console.log('Found auto moves: ', autoMoves);
+    }
+
+    prevMoveListIdentityString = autoMovesIdentityString;
   }, 50);
 });
