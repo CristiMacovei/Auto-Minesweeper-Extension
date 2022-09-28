@@ -56,7 +56,11 @@ function identityString(moveList: AutoMove[]): string {
     .join('+');
 }
 
-function getTypeFromClass(className: string): TileType {
+function getTypeFromClass(className: string | undefined): TileType | undefined {
+  if (!className) {
+    return undefined;
+  }
+
   const stateName = className.split(' ')[1];
 
   switch (stateName) {
@@ -243,6 +247,7 @@ function useOneOutOfTwo(matrix: Tile[][], numRows: number, numCols: number) {
   let moves: AutoMove[] = [];
   for (let i = 1; i < numRows; ++i) {
     for (let j = 1; j < numCols; ++j) {
+      console.log(`Trying to run off of ${i}, ${j}`);
       const currentState = getTypeFromClass(matrix[i][j].tileDiv.className);
 
       if (currentState !== null && currentState >= 0) {
@@ -291,7 +296,7 @@ function useOneOutOfTwo(matrix: Tile[][], numRows: number, numCols: number) {
               0 < candidateCol &&
               candidateCol < numCols &&
               getTypeFromClass(
-                matrix[candidateRow][candidateCol].tileDiv.className
+                matrix[candidateRow][candidateCol]?.tileDiv?.className
               ) === TileType.UNCOVERED
             ) {
               let nextTargetRow = candidateRow;
@@ -343,17 +348,16 @@ function useOneOutOfTwo(matrix: Tile[][], numRows: number, numCols: number) {
                     getTypeFromClass(tileDiv.className) === TileType.UNCOVERED
                 );
 
-                if (nextTargetEmptyNeighbours.length !== 3) {
-                  console.log('Fails due to more | less than 3 possibilities');
-                  return;
-                }
                 const nextTargetNumFlagsRequired =
                   nextTargetState - nextTargetFlagNeighbours.length;
 
                 console.log(
                   `[${i}, ${j}] - Final check: num flags for next target = ${nextTargetNumFlagsRequired}`
                 );
-                if (nextTargetNumFlagsRequired === 2) {
+                if (
+                  nextTargetNumFlagsRequired === 2 &&
+                  nextTargetEmptyNeighbours.length === 3
+                ) {
                   moves.push({
                     row: candidateRow,
                     col: candidateCol,
@@ -362,12 +366,20 @@ function useOneOutOfTwo(matrix: Tile[][], numRows: number, numCols: number) {
                     reason: `1-2 from (${i},${j})`
                   });
                 } else if (nextTargetNumFlagsRequired === 1) {
-                  moves.push({
-                    row: candidateRow,
-                    col: candidateCol,
-                    tileDiv: matrix[candidateRow][candidateCol].tileDiv,
-                    type: 'reveal',
-                    reason: `1-2 from (${i},${j})`
+                  nextTargetEmptyNeighbours.forEach((empty) => {
+                    if (
+                      empty.pos.row !== empty1.pos.row &&
+                      empty.pos.col !== empty1.pos.col &&
+                      empty.pos.row !== empty2.pos.row &&
+                      empty.pos.col !== empty2.pos.col
+                    ) {
+                      moves.push({
+                        ...empty.pos,
+                        tileDiv: matrix[candidateRow][candidateCol].tileDiv,
+                        type: 'reveal',
+                        reason: `1-2 from (${i},${j})`
+                      });
+                    }
                   });
                 }
               }
@@ -406,6 +418,11 @@ window.addEventListener('load', async (evt) => {
 
     const autoMoves = findMoves(tiles.matrix, tiles.numRows, tiles.numCols);
     autoMoves.forEach((autoMove) => {
+      //todo fix this bug
+      if (!autoMove.tileDiv) {
+        console.log('fucked up:', autoMove);
+        return;
+      }
       autoMove.tileDiv.classList.add(
         autoMove.type === 'flag' ? 'red' : 'green'
       );
