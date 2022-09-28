@@ -136,7 +136,8 @@ function findMoves(
 ): AutoMove[] {
   return []
     .concat(findFullySurroundedOpenTiles(matrix, numRows, numCols))
-    .concat(findNonFlaggedTiles(matrix, numRows, numCols));
+    .concat(findNonFlaggedTiles(matrix, numRows, numCols))
+    .concat(useOneOutOfTwo(matrix, numRows, numCols));
 }
 
 function findFullySurroundedOpenTiles(
@@ -261,69 +262,115 @@ function useOneOutOfTwo(matrix: Tile[][], numRows: number, numCols: number) {
 
         const numFlagsRequired = currentState - flagNeighbors.length;
 
+        console.log(`Running 1-2 off of (${i}, ${j})`);
         if (emptyNeighbors.length === 2 && numFlagsRequired === 1) {
-          // empty neighbours are adjacent
           const [empty1, empty2] = emptyNeighbors;
 
           const deltaRow = empty1.pos.row - empty2.pos.row;
           const deltaCol = empty1.pos.col - empty2.pos.col;
+          console.log(
+            `Empties: (${empty1.pos.row},${empty1.pos.col}), (${empty2.pos.row},${empty2.pos.col})`
+          );
 
+          // empty neighbours are adjacent
           if (Math.abs(deltaRow) + Math.abs(deltaCol) !== 1) {
             return;
           }
+          console.log(`Passed line 268 check`);
 
-          const nextRow = empty1.pos.row + deltaRow;
-          const nextCol = empty1.pos.col + deltaCol;
+          for (let multiplier = -2; multiplier <= 1; multiplier += 3) {
+            const candidateRow = empty1.pos.row + deltaRow * multiplier;
+            const candidateCol = empty1.pos.col + deltaCol * multiplier;
 
-          if (
-            0 < nextRow &&
-            nextRow < numRows &&
-            0 < nextCol &&
-            nextCol < numCols &&
-            getTypeFromClass(matrix[nextRow][nextCol].tileDiv.className) ===
-              TileType.UNCOVERED
-          ) {
-            let nextTargetRow = nextRow;
-            let nextTargetCol = nextCol;
+            console.log(
+              `[${i}, ${j} @ ${multiplier}] Candidate (${candidateRow}, ${candidateCol}`
+            );
+            if (
+              0 < candidateRow &&
+              candidateRow < numRows &&
+              0 < candidateCol &&
+              candidateCol < numCols &&
+              getTypeFromClass(
+                matrix[candidateRow][candidateCol].tileDiv.className
+              ) === TileType.UNCOVERED
+            ) {
+              let nextTargetRow = candidateRow;
+              let nextTargetCol = candidateCol;
 
-            if (nextTargetRow - i === 2) {
-              --nextTargetRow;
-            } else if (nextTargetRow - i === -2) {
-              ++nextTargetRow;
-            } else if (nextTargetCol - j === 2) {
-              --nextTargetCol;
-            } else if (nextTargetCol - j === -2) {
-              ++nextTargetCol;
-            }
+              if (nextTargetRow - i === 2) {
+                --nextTargetRow;
+                nextTargetCol = j;
+              } else if (nextTargetRow - i === -2) {
+                ++nextTargetRow;
+                nextTargetCol = j;
+              } else if (nextTargetCol - j === 2) {
+                --nextTargetCol;
+                nextTargetRow = i;
+              } else if (nextTargetCol - j === -2) {
+                ++nextTargetCol;
+                nextTargetRow = i;
+              }
 
-            const nextTargetDiv = matrix[nextTargetRow][nextTargetCol].tileDiv;
-            const nextTargetState = getTypeFromClass(nextTargetDiv.className);
-
-            if (nextTargetState !== null && nextTargetState !== 0) {
-              const nextNeighbors = findNeighbors(
-                nextTargetRow,
-                nextTargetCol,
-                numRows,
-                numCols
-              ).map((pos) => ({
-                pos,
-                tileDiv: matrix[pos.row][pos.col].tileDiv
-              }));
-
-              const nextTargetFlagNeighbours = nextNeighbors.filter(
-                ({ tileDiv }) =>
-                  getTypeFromClass(tileDiv.className) === TileType.FLAG
+              console.log(
+                `Targeted tile is (${nextTargetRow}, ${nextTargetCol})`
               );
 
-              const nextTargetEmptyNeighbours = nextNeighbors.filter(
-                ({ tileDiv }) =>
-                  getTypeFromClass(tileDiv.className) === TileType.UNCOVERED
-              );
+              const nextTargetDiv =
+                matrix[nextTargetRow][nextTargetCol].tileDiv;
+              const nextTargetState = getTypeFromClass(nextTargetDiv.className);
+              console.log(`Targeted tile state: ${nextTargetState}`);
 
-              const nextTargetNumFlagsRequired =
-                nextTargetState - flagNeighbors.length;
+              if (nextTargetState !== null && nextTargetState > 0) {
+                console.log('Passed line 311 check');
 
-              //todo fix it
+                const nextNeighbors = findNeighbors(
+                  nextTargetRow,
+                  nextTargetCol,
+                  numRows,
+                  numCols
+                ).map((pos) => ({
+                  pos,
+                  tileDiv: matrix[pos.row][pos.col].tileDiv
+                }));
+
+                const nextTargetFlagNeighbours = nextNeighbors.filter(
+                  ({ tileDiv }) =>
+                    getTypeFromClass(tileDiv.className) === TileType.FLAG
+                );
+
+                const nextTargetEmptyNeighbours = nextNeighbors.filter(
+                  ({ tileDiv }) =>
+                    getTypeFromClass(tileDiv.className) === TileType.UNCOVERED
+                );
+
+                if (nextTargetEmptyNeighbours.length !== 3) {
+                  console.log('Fails due to more | less than 3 possibilities');
+                  return;
+                }
+                const nextTargetNumFlagsRequired =
+                  nextTargetState - nextTargetFlagNeighbours.length;
+
+                console.log(
+                  `[${i}, ${j}] - Final check: num flags for next target = ${nextTargetNumFlagsRequired}`
+                );
+                if (nextTargetNumFlagsRequired === 2) {
+                  moves.push({
+                    row: candidateRow,
+                    col: candidateCol,
+                    tileDiv: matrix[candidateRow][candidateCol].tileDiv,
+                    type: 'flag',
+                    reason: `1-2 from (${i},${j})`
+                  });
+                } else if (nextTargetNumFlagsRequired === 1) {
+                  moves.push({
+                    row: candidateRow,
+                    col: candidateCol,
+                    tileDiv: matrix[candidateRow][candidateCol].tileDiv,
+                    type: 'reveal',
+                    reason: `1-2 from (${i},${j})`
+                  });
+                }
+              }
             }
           }
         }
