@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Minesweeper Helper",
   "description": "An extension to automatically play minesweeper for you",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "author": "Cristi Macovei",
   "action": {
     "default_popup": "html/popup.html"

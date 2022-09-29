@@ -61,6 +61,14 @@ function getTypeFromClass(className: string | undefined): TileType | undefined {
     return undefined;
   }
 
+  if (className.includes('red')) {
+    return TileType.FLAG;
+  }
+
+  // if (className.includes('green')) {
+  //    return TileType.REVEAL_NONVALUE;
+  // }
+
   const stateName = className.split(' ')[1];
 
   switch (stateName) {
@@ -160,6 +168,23 @@ function findFullySurroundedOpenTiles(
           tileDiv: matrix[pos.row][pos.col].tileDiv
         }));
 
+        const artificialFlags = neighbors.filter(({ tileDiv }) =>
+          tileDiv.className.includes('red')
+        );
+        if (artificialFlags.length > 0) {
+          console.log(artificialFlags);
+        }
+
+        // console.log(
+        //   `Finding artificial flag neighbours of [${i},${j}]: ${neighbors.filter(
+        //     ({ pos, tileDiv }) => {
+        //       // console.log(`Neighbor pos: ${pos}: ${tileDiv.className}`);
+
+        //       return tileDiv.className.includes('red');
+        //     }
+        //   )}`
+        // );
+
         const flagNeighbors = neighbors.filter(
           ({ tileDiv }) => getTypeFromClass(tileDiv.className) === TileType.FLAG
         );
@@ -247,7 +272,7 @@ function useOneOutOfTwo(matrix: Tile[][], numRows: number, numCols: number) {
   let moves: AutoMove[] = [];
   for (let i = 1; i < numRows; ++i) {
     for (let j = 1; j < numCols; ++j) {
-      console.log(`Trying to run off of ${i}, ${j}`);
+      // console.log(`Trying to run off of ${i}, ${j}`);
       const currentState = getTypeFromClass(matrix[i][j].tileDiv.className);
 
       if (currentState !== null && currentState >= 0) {
@@ -267,29 +292,29 @@ function useOneOutOfTwo(matrix: Tile[][], numRows: number, numCols: number) {
 
         const numFlagsRequired = currentState - flagNeighbors.length;
 
-        console.log(`Running 1-2 off of (${i}, ${j})`);
+        // console.log(`Running 1-2 off of (${i}, ${j})`);
         if (emptyNeighbors.length === 2 && numFlagsRequired === 1) {
           const [empty1, empty2] = emptyNeighbors;
 
           const deltaRow = empty1.pos.row - empty2.pos.row;
           const deltaCol = empty1.pos.col - empty2.pos.col;
-          console.log(
-            `Empties: (${empty1.pos.row},${empty1.pos.col}), (${empty2.pos.row},${empty2.pos.col})`
-          );
+          // console.log(
+          //   `Empties: (${empty1.pos.row},${empty1.pos.col}), (${empty2.pos.row},${empty2.pos.col})`
+          // );
 
           // empty neighbours are adjacent
           if (Math.abs(deltaRow) + Math.abs(deltaCol) !== 1) {
             return;
           }
-          console.log(`Passed line 268 check`);
+          // console.log(`Passed line 268 check`);
 
           for (let multiplier = -2; multiplier <= 1; multiplier += 3) {
             const candidateRow = empty1.pos.row + deltaRow * multiplier;
             const candidateCol = empty1.pos.col + deltaCol * multiplier;
 
-            console.log(
-              `[${i}, ${j} @ ${multiplier}] Candidate (${candidateRow}, ${candidateCol}`
-            );
+            // console.log(
+            //   `[${i}, ${j} @ ${multiplier}] Candidate (${candidateRow}, ${candidateCol}`
+            // );
             if (
               0 < candidateRow &&
               candidateRow < numRows &&
@@ -316,17 +341,17 @@ function useOneOutOfTwo(matrix: Tile[][], numRows: number, numCols: number) {
                 nextTargetRow = i;
               }
 
-              console.log(
-                `Targeted tile is (${nextTargetRow}, ${nextTargetCol})`
-              );
+              // console.log(
+              //   `Targeted tile is (${nextTargetRow}, ${nextTargetCol})`
+              // );
 
               const nextTargetDiv =
                 matrix[nextTargetRow][nextTargetCol].tileDiv;
               const nextTargetState = getTypeFromClass(nextTargetDiv.className);
-              console.log(`Targeted tile state: ${nextTargetState}`);
+              // console.log(`Targeted tile state: ${nextTargetState}`);
 
               if (nextTargetState !== null && nextTargetState > 0) {
-                console.log('Passed line 311 check');
+                // console.log('Passed line 311 check');
 
                 const nextNeighbors = findNeighbors(
                   nextTargetRow,
@@ -351,27 +376,42 @@ function useOneOutOfTwo(matrix: Tile[][], numRows: number, numCols: number) {
                 const nextTargetNumFlagsRequired =
                   nextTargetState - nextTargetFlagNeighbours.length;
 
-                console.log(
-                  `[${i}, ${j}] - Final check: num flags for next target = ${nextTargetNumFlagsRequired}`
-                );
+                // console.log(
+                //   `[${i}, ${j}] - Final check: num flags for next target = ${nextTargetNumFlagsRequired}`
+                // );
+                // console.log(`
+                //   [${i}, ${j}] - Empties: ${nextTargetEmptyNeighbours.map(
+                //   (n) => n.pos
+                // )}`);
                 if (
-                  nextTargetNumFlagsRequired === 2 &&
-                  nextTargetEmptyNeighbours.length === 3
+                  nextTargetNumFlagsRequired + 1 ===
+                  nextTargetEmptyNeighbours.length
                 ) {
-                  moves.push({
-                    row: candidateRow,
-                    col: candidateCol,
-                    tileDiv: matrix[candidateRow][candidateCol].tileDiv,
-                    type: 'flag',
-                    reason: `1-2 from (${i},${j})`
-                  });
-                } else if (nextTargetNumFlagsRequired === 1) {
+                  // console.log(`[${i}, ${j}] - Flagging empties`);
                   nextTargetEmptyNeighbours.forEach((empty) => {
                     if (
-                      empty.pos.row !== empty1.pos.row &&
-                      empty.pos.col !== empty1.pos.col &&
-                      empty.pos.row !== empty2.pos.row &&
-                      empty.pos.col !== empty2.pos.col
+                      (empty.pos.row !== empty1.pos.row ||
+                        empty.pos.col !== empty1.pos.col) &&
+                      (empty.pos.row !== empty2.pos.row ||
+                        empty.pos.col !== empty2.pos.col)
+                    ) {
+                      moves.push({
+                        row: candidateRow,
+                        col: candidateCol,
+                        tileDiv: matrix[candidateRow][candidateCol].tileDiv,
+                        type: 'flag',
+                        reason: `1-2 from (${i},${j})`
+                      });
+                    }
+                  });
+                } else if (nextTargetNumFlagsRequired === 1) {
+                  // console.log(`[${i}, ${j}] - Uncovering empties`);
+                  nextTargetEmptyNeighbours.forEach((empty) => {
+                    if (
+                      (empty.pos.row !== empty1.pos.row ||
+                        empty.pos.col !== empty1.pos.col) &&
+                      (empty.pos.row !== empty2.pos.row ||
+                        empty.pos.col !== empty2.pos.col)
                     ) {
                       moves.push({
                         ...empty.pos,
@@ -401,7 +441,15 @@ window.addEventListener('load', async (evt) => {
 
   let prevMoveListIdentityString = '';
 
-  setInterval(() => {
+  let iterations = 200;
+  let testingMode = false;
+  const mainInterval = setInterval(() => {
+    --iterations;
+    if (testingMode && iterations < 0) {
+      clearInterval(mainInterval);
+      return;
+    }
+
     if (
       faceElement.className.includes('facedead') ||
       faceElement.className.includes('faceooh')
